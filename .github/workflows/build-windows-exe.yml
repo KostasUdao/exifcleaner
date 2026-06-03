@@ -1,5 +1,11 @@
 name: Build Windows EXE
 
+# Lightweight, on-demand Windows-only build. Produces the installer + portable
+# .exe as a downloadable artifact. No test gate / macOS / Linux / release steps,
+# so it is fast and has few failure points — ideal for grabbing a build quickly.
+#
+# Run it from the GitHub UI: Actions tab -> "Build Windows EXE" -> Run workflow.
+
 on:
   workflow_dispatch:
 

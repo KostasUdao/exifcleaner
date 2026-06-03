@@ -157,6 +157,10 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
+      - name: Bundle qpdf (offline PDF deep-clean)
+        shell: bash
+        run: perl ./update_qpdf.pl
+
       - name: Build Windows artifacts
         run: yarn packwin --publish never
 
