@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from "react";
 import type { Dispatch } from "react";
 import type { FileEntry, AppAction } from "../contexts/AppContext";
 import { useAppContext } from "../contexts/AppContext";
-import { FileProcessingStatus } from "../../domain";
+import { FileProcessingStatus, classifyCleaningOutcome } from "../../domain";
 
 // Processes files sequentially: read metadata -> strip -> read after -> update state.
 // Uses a queue ref to handle rapid successive drops without race conditions.
@@ -29,17 +29,20 @@ export async function processFileEntries(
 			});
 			const removeResult = await window.api.exif.removeMetadata(entry.path);
 
-			if (removeResult.error !== null) {
+			if (!removeResult.ok || removeResult.error !== null) {
 				dispatch({
 					type: "UPDATE_FILE_ERROR",
 					id: entry.id,
-					error: removeResult.error,
+					error: removeResult.error ?? "Unknown error",
 				});
 				window.api.files.notifyFileProcessed();
 				continue;
 			}
 
-			const afterMetadata = await window.api.exif.readMetadata(entry.path);
+			// In save-as-copy mode the cleaned file is a new path; verify THAT
+			// file, not the (still-dirty) original.
+			const effectivePath = removeResult.outputPath ?? entry.path;
+			const afterMetadata = await window.api.exif.readMetadata(effectivePath);
 			const afterTags = Object.keys(afterMetadata).length;
 
 			dispatch({
@@ -51,10 +54,20 @@ export async function processFileEntries(
 				afterMetadata,
 			});
 
+			// Honest verification: classify what actually remains. PDFs whose dead
+			// metadata could not be physically removed are flagged as residual even
+			// when the re-read reports zero tags.
+			const outcome = classifyCleaningOutcome({
+				beforeCount: beforeTags,
+				afterCount: afterTags,
+				pdfResidueRisk: removeResult.pdfResidueRisk,
+			});
 			const finalStatus =
-				beforeTags === 0
+				outcome === "no-metadata"
 					? FileProcessingStatus.NoMetadataFound
-					: FileProcessingStatus.Complete;
+					: outcome === "residual"
+						? FileProcessingStatus.Residual
+						: FileProcessingStatus.Complete;
 			dispatch({
 				type: "UPDATE_FILE_STATUS",
 				id: entry.id,

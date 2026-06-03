@@ -84,7 +84,14 @@ describe("processFileEntries", () => {
 	it("dispatches UPDATE_FILE_STATUS 'reading' for each file", async () => {
 		const entry = makeFileEntry();
 		mockApi.exif.readMetadata.mockResolvedValue({ tag1: "val1" });
-		mockApi.exif.removeMetadata.mockResolvedValue({ data: null, error: null });
+		mockApi.exif.removeMetadata.mockResolvedValue({
+			ok: true,
+			error: null,
+			outputPath: null,
+			pdfResidueRisk: false,
+			pdfTool: null,
+			xattrsRemoved: false,
+		});
 
 		await processFileEntries([entry], mockDispatch);
 
@@ -104,7 +111,14 @@ describe("processFileEntries", () => {
 	it("dispatches UPDATE_FILE_STATUS 'processing' after reading metadata", async () => {
 		const entry = makeFileEntry();
 		mockApi.exif.readMetadata.mockResolvedValue({ tag1: "val1" });
-		mockApi.exif.removeMetadata.mockResolvedValue({ data: null, error: null });
+		mockApi.exif.removeMetadata.mockResolvedValue({
+			ok: true,
+			error: null,
+			outputPath: null,
+			pdfResidueRisk: false,
+			pdfTool: null,
+			xattrsRemoved: false,
+		});
 
 		await processFileEntries([entry], mockDispatch);
 
@@ -135,7 +149,14 @@ describe("processFileEntries", () => {
 		mockApi.exif.readMetadata
 			.mockResolvedValueOnce({ tag1: "v", tag2: "v", tag3: "v" })
 			.mockResolvedValueOnce({ tag1: "v" });
-		mockApi.exif.removeMetadata.mockResolvedValue({ data: null, error: null });
+		mockApi.exif.removeMetadata.mockResolvedValue({
+			ok: true,
+			error: null,
+			outputPath: null,
+			pdfResidueRisk: false,
+			pdfTool: null,
+			xattrsRemoved: false,
+		});
 
 		await processFileEntries([entry], mockDispatch);
 
@@ -155,10 +176,18 @@ describe("processFileEntries", () => {
 
 	it("dispatches UPDATE_FILE_STATUS 'complete' on success", async () => {
 		const entry = makeFileEntry();
+		// before: 2 tags, after: 0 tags -> fully cleaned.
 		mockApi.exif.readMetadata
 			.mockResolvedValueOnce({ tag1: "v", tag2: "v" })
-			.mockResolvedValueOnce({ tag1: "v" });
-		mockApi.exif.removeMetadata.mockResolvedValue({ data: null, error: null });
+			.mockResolvedValueOnce({});
+		mockApi.exif.removeMetadata.mockResolvedValue({
+			ok: true,
+			error: null,
+			outputPath: null,
+			pdfResidueRisk: false,
+			pdfTool: null,
+			xattrsRemoved: false,
+		});
 
 		await processFileEntries([entry], mockDispatch);
 
@@ -170,10 +199,89 @@ describe("processFileEntries", () => {
 		expect(completeDispatches).toHaveLength(1);
 	});
 
+	it("dispatches 'residual' when metadata survives the strip", async () => {
+		const entry = makeFileEntry();
+		// before: 2 tags, after: 1 tag still present -> incomplete clean.
+		mockApi.exif.readMetadata
+			.mockResolvedValueOnce({ tag1: "v", tag2: "v" })
+			.mockResolvedValueOnce({ tag1: "v" });
+		mockApi.exif.removeMetadata.mockResolvedValue({
+			ok: true,
+			error: null,
+			outputPath: null,
+			pdfResidueRisk: false,
+			pdfTool: null,
+			xattrsRemoved: false,
+		});
+
+		await processFileEntries([entry], mockDispatch);
+
+		const residualDispatches = dispatches.filter(
+			(d) =>
+				d.type === "UPDATE_FILE_STATUS" &&
+				d.status === FileProcessingStatus.Residual,
+		);
+		expect(residualDispatches).toHaveLength(1);
+	});
+
+	it("dispatches 'residual' for a PDF flagged with residue risk even when after=0", async () => {
+		const entry = makeFileEntry();
+		// after-read reports zero, but the strip flagged recoverable PDF residue.
+		mockApi.exif.readMetadata
+			.mockResolvedValueOnce({ tag1: "v", tag2: "v" })
+			.mockResolvedValueOnce({});
+		mockApi.exif.removeMetadata.mockResolvedValue({
+			ok: true,
+			error: null,
+			outputPath: null,
+			pdfResidueRisk: true,
+			pdfTool: null,
+			xattrsRemoved: false,
+		});
+
+		await processFileEntries([entry], mockDispatch);
+
+		const residualDispatches = dispatches.filter(
+			(d) =>
+				d.type === "UPDATE_FILE_STATUS" &&
+				d.status === FileProcessingStatus.Residual,
+		);
+		expect(residualDispatches).toHaveLength(1);
+	});
+
+	it("verifies the COPY path in save-as-copy mode (reads outputPath, not original)", async () => {
+		const entry = makeFileEntry({ id: "x", path: "/orig.jpg" });
+		const reads: string[] = [];
+		mockApi.exif.readMetadata.mockImplementation(async (p: string) => {
+			reads.push(p);
+			return {};
+		});
+		mockApi.exif.removeMetadata.mockResolvedValue({
+			ok: true,
+			error: null,
+			outputPath: "/orig_cleaned.jpg",
+			pdfResidueRisk: false,
+			pdfTool: null,
+			xattrsRemoved: false,
+		});
+
+		await processFileEntries([entry], mockDispatch);
+
+		// First read is the original (before); the after-read must target the copy.
+		expect(reads).toEqual(["/orig.jpg", "/orig_cleaned.jpg"]);
+	});
+
 	it("dispatches 'no-metadata-found' when beforeTags is 0", async () => {
 		const entry = makeFileEntry();
 		mockApi.exif.readMetadata.mockResolvedValue({});
-		mockApi.exif.removeMetadata.mockResolvedValue({ data: null, error: null });
+		mockApi.exif.removeMetadata.mockResolvedValue({
+			ok: true,
+			error: null,
+			outputPath: null,
+			pdfResidueRisk: false,
+			pdfTool: null,
+			xattrsRemoved: false,
+		});
 
 		await processFileEntries([entry], mockDispatch);
 
@@ -187,9 +295,7 @@ describe("processFileEntries", () => {
 
 	it("dispatches UPDATE_FILE_ERROR on IPC failure", async () => {
 		const entry = makeFileEntry();
-		mockApi.exif.readMetadata.mockRejectedValue(
-			new Error("ExifTool crashed"),
-		);
+		mockApi.exif.readMetadata.mockRejectedValue(new Error("ExifTool crashed"));
 
 		await processFileEntries([entry], mockDispatch);
 
@@ -215,7 +321,14 @@ describe("processFileEntries", () => {
 		});
 		mockApi.exif.removeMetadata.mockImplementation(async (path: string) => {
 			callOrder.push(`remove:${path}`);
-			return { data: null, error: null };
+			return {
+				ok: true,
+				error: null,
+				outputPath: null,
+				pdfResidueRisk: false,
+				pdfTool: null,
+				xattrsRemoved: false,
+			};
 		});
 
 		await processFileEntries([entry1, entry2], mockDispatch);
@@ -237,7 +350,14 @@ describe("processFileEntries", () => {
 			makeFileEntry({ id: "id-2" }),
 		];
 		mockApi.exif.readMetadata.mockResolvedValue({ tag: "v" });
-		mockApi.exif.removeMetadata.mockResolvedValue({ data: null, error: null });
+		mockApi.exif.removeMetadata.mockResolvedValue({
+			ok: true,
+			error: null,
+			outputPath: null,
+			pdfResidueRisk: false,
+			pdfTool: null,
+			xattrsRemoved: false,
+		});
 
 		await processFileEntries(entries, mockDispatch);
 
@@ -247,7 +367,14 @@ describe("processFileEntries", () => {
 	it("calls window.api.files.notifyAllFilesProcessed at end", async () => {
 		const entry = makeFileEntry();
 		mockApi.exif.readMetadata.mockResolvedValue({ tag: "v" });
-		mockApi.exif.removeMetadata.mockResolvedValue({ data: null, error: null });
+		mockApi.exif.removeMetadata.mockResolvedValue({
+			ok: true,
+			error: null,
+			outputPath: null,
+			pdfResidueRisk: false,
+			pdfTool: null,
+			xattrsRemoved: false,
+		});
 
 		await processFileEntries([entry], mockDispatch);
 
@@ -260,7 +387,14 @@ describe("processFileEntries", () => {
 			makeFileEntry({ id: "id-2" }),
 		];
 		mockApi.exif.readMetadata.mockResolvedValue({ tag: "v" });
-		mockApi.exif.removeMetadata.mockResolvedValue({ data: null, error: null });
+		mockApi.exif.removeMetadata.mockResolvedValue({
+			ok: true,
+			error: null,
+			outputPath: null,
+			pdfResidueRisk: false,
+			pdfTool: null,
+			xattrsRemoved: false,
+		});
 
 		await processFileEntries(entries, mockDispatch);
 

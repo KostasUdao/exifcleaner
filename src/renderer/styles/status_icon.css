@@ -24,6 +24,10 @@
 	color: var(--ec-color-error);
 }
 
+.status-icon__warning {
+	color: var(--ec-color-gold);
+}
+
 /* Keyframes */
 @keyframes ec-spin {
 	from {

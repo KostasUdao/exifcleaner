@@ -66,6 +66,14 @@
 	background: var(--ec-color-error-bg);
 }
 
+.file-table__row--residual {
+	background: var(--ec-color-gold-bg);
+}
+
+.file-table__after-residual {
+	color: var(--ec-color-gold);
+}
+
 .file-table__cell {
 	padding: var(--ec-space-2);
 	overflow: hidden;

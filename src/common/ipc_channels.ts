@@ -51,7 +51,20 @@ export interface IpcInvokeMap {
 	};
 	[IPC_CHANNELS.EXIF_REMOVE]: {
 		args: [filePath: string];
-		return: { data: null; error: string | null };
+		return: {
+			ok: boolean;
+			error: string | null;
+			// Path of the cleaned file. Non-null only in save-as-copy mode; null
+			// means the original was overwritten in place.
+			outputPath: string | null;
+			// true when recoverable metadata may remain in a PDF because no
+			// structural rewrite tool (qpdf/Ghostscript) was available.
+			pdfResidueRisk: boolean;
+			// Which rewrite tool cleaned the PDF, if any.
+			pdfTool: "qpdf" | "ghostscript" | null;
+			// true when macOS extended attributes were stripped.
+			xattrsRemoved: boolean;
+		};
 	};
 	[IPC_CHANNELS.SETTINGS_GET]: { args: []; return: Settings };
 	[IPC_CHANNELS.SETTINGS_SET]: {

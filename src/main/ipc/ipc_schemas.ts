@@ -12,6 +12,8 @@ export const settingsSetSchema = z.object({
 	saveAsCopy: z.boolean().optional(),
 	removeXattrs: z.boolean().optional(),
 	preserveTimestamps: z.boolean().optional(),
+	deepCleanPdf: z.boolean().optional(),
+	maximumScrub: z.boolean().optional(),
 	language: z.string().nullable().optional(),
 	themeMode: z.enum(["light", "dark", "system"]).optional(),
 });

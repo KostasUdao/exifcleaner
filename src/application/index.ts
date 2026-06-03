@@ -4,6 +4,7 @@ export type { ExifToolPort } from "./exiftool_port";
 export type { LoggerPort } from "./logger_port";
 export type { SettingsPort } from "./settings_port";
 export type { XattrPort } from "./commands/xattr_command";
+export type { PdfScrubPort, PdfScrubResult } from "./pdf_scrub_port";
 
 export { XattrCommand } from "./commands/xattr_command";
 export { StripMetadataCommand } from "./commands/strip_metadata_command";

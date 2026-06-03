@@ -24,17 +24,36 @@ export function setupExifHandlers({
 		"exif:remove",
 		createValidatedHandler(exifRemoveSchema, async (filePath) => {
 			const settings = container.settings.get();
+			// Maximum scrub overrides the fidelity-preserving toggles for the most
+			// thorough wipe, and always deep-cleans PDFs.
+			const max = settings.maximumScrub;
 			const result = await container.stripMetadata.execute({
 				filePath,
-				preserveOrientation: settings.preserveOrientation,
-				preserveColorProfile: settings.preserveColorProfile,
+				preserveOrientation: max ? false : settings.preserveOrientation,
+				preserveColorProfile: max ? false : settings.preserveColorProfile,
 				preserveTimestamps: settings.preserveTimestamps,
 				saveAsCopy: settings.saveAsCopy,
+				deepCleanPdf: settings.deepCleanPdf || max,
+				removeXattrs: settings.removeXattrs,
 			});
 			if (result.ok) {
-				return { data: null, error: null };
+				return {
+					ok: true,
+					error: null,
+					outputPath: result.value.outputPath,
+					pdfResidueRisk: result.value.pdfResidueRisk,
+					pdfTool: result.value.pdfTool,
+					xattrsRemoved: result.value.xattrsRemoved,
+				};
 			}
-			return { data: null, error: formatExifError(result.error) };
+			return {
+				ok: false,
+				error: formatExifError(result.error),
+				outputPath: null,
+				pdfResidueRisk: false,
+				pdfTool: null,
+				xattrsRemoved: false,
+			};
 		}),
 	);
 }

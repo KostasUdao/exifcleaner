@@ -9,8 +9,8 @@ import {
 import type { Settings, SettingsFile } from "../../src/domain/settings_schema";
 
 describe("CURRENT_SCHEMA_VERSION", () => {
-	it("is version 3", () => {
-		expect(CURRENT_SCHEMA_VERSION).toBe(3);
+	it("is version 4", () => {
+		expect(CURRENT_SCHEMA_VERSION).toBe(4);
 	});
 });
 
@@ -133,13 +133,15 @@ describe("validateSettings", () => {
 describe("isSettingsFile", () => {
 	it("returns true for a valid SettingsFile shape", () => {
 		const valid = {
-			version: 3,
+			version: 4,
 			settings: {
 				preserveOrientation: true,
 				preserveColorProfile: true,
 				saveAsCopy: false,
 				removeXattrs: false,
 				preserveTimestamps: false,
+				deepCleanPdf: true,
+				maximumScrub: false,
 				language: null,
 				themeMode: "system",
 			},
@@ -149,13 +151,15 @@ describe("isSettingsFile", () => {
 
 	it("returns true when language is a string", () => {
 		const valid = {
-			version: 3,
+			version: 4,
 			settings: {
 				preserveOrientation: true,
 				preserveColorProfile: true,
 				saveAsCopy: false,
 				removeXattrs: false,
 				preserveTimestamps: false,
+				deepCleanPdf: true,
+				maximumScrub: false,
 				language: "en",
 				themeMode: "dark",
 			},

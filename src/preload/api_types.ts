@@ -9,9 +9,14 @@ export interface ExifData {
 
 export interface ExifApi {
 	readMetadata: (filePath: string) => Promise<ExifData>;
-	removeMetadata: (
-		filePath: string,
-	) => Promise<{ data: null; error: string | null }>;
+	removeMetadata: (filePath: string) => Promise<{
+		ok: boolean;
+		error: string | null;
+		outputPath: string | null;
+		pdfResidueRisk: boolean;
+		pdfTool: "qpdf" | "ghostscript" | null;
+		xattrsRemoved: boolean;
+	}>;
 }
 
 export interface I18nApi {
